@@ -77,6 +77,7 @@ void SystemClock_Config(void);
 void configAlarm(void);
 void choseAlarm(struct day_schedule*);
 void fault(void);
+void NumToChar(uint8_t, char[2]);
 uint8_t SetDate(uint8_t*);
 uint8_t SetOpenTime(uint8_t*);
 uint8_t SetCloseTime(uint8_t*);
@@ -146,28 +147,17 @@ int main(void)
     alarm_chosen = 0;
     /** current time **/
     HAL_RTC_GetTime(&hrtc, &RTC_Time, RTC_FORMAT_BCD);
-
     HAL_UART_Transmit(&huart1, (uint8_t*)"Current time ", (uint16_t)strlen("Current time "), 150);
 
-    uint8_t ch1 = (RTC_Time.Hours >> 4);
-    uint8_t ch2 = (uint8_t) (RTC_Time.Hours & 0x0F);
-    char cp1 = (char) (ch1+48);
-    char cp2 = (char) (ch2+48);
-    char chour[2];
-    chour[0] = cp1;
-    chour[1] = cp2;
-    HAL_UART_Transmit(&huart1, (uint8_t*) chour, 2, 50);
-
+    char cur_hour[2] = {0};
+    NumToChar(RTC_Time.Hours, cur_hour);
+    HAL_UART_Transmit(&huart1, (uint8_t*) cur_hour, 2, 50);
+    //  //
     HAL_UART_Transmit(&huart1, (uint8_t*) ":", 1, 5);
-
-    uint8_t cm1 = (RTC_Time.Minutes >> 4);
-    uint8_t cm2 = (uint8_t) (RTC_Time.Minutes & 0x0F);
-    char cmp1 = (char) (cm1+48);
-    char cmp2 = (char) (cm2+48);
-    char cminutes[2];
-    cminutes[0] = cmp1;
-    cminutes[1] = cmp2;
-    HAL_UART_Transmit(&huart1, (uint8_t*) cminutes, 2, 50);
+    //  //
+    char cur_min[2] = {0};
+    NumToChar(RTC_Time.Minutes, cur_min);
+    HAL_UART_Transmit(&huart1, (uint8_t*) cur_min, 2, 50);
 
     HAL_UART_Transmit(&huart1, (uint8_t*)"\n", 1, 5);
 
@@ -198,17 +188,21 @@ int main(void)
 
     /* USER CODE END 3 */
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
 while (1)
 {
+
     HAL_UART_Receive_IT(&huart1, uart_1_buf, UART_RECV_BUF_SIZE);
     /** Alarm configured and waiting for action**/
+
     if(alarm_chosen){
-        /** void **/
+
     }
     else
-    /**Alarm gone and the new one need to be chosen**/
+    //**Alarm gone and the new one need to be chosen
     {
-        /**Call function to chose the next alarm from user defined schedule**/
+        //**Call function to chose the next alarm from user defined schedule
         configAlarm();
         if(next_alarm == NULL){
             fault();
@@ -222,25 +216,16 @@ while (1)
 
         HAL_UART_Transmit(&huart1, (uint8_t*)"Alarm time ", (uint16_t)strlen("Alarm time "), 150);
 
-        uint8_t h1 = (next_alarm->hour >> 4);
-        uint8_t h2 = (uint8_t) (next_alarm->hour & 0x0F);
-        char hp1 = (char) (h1+48);
-        char hp2 = (char) (h2+48);
-        char hour[2];
-        hour[0] = hp1;
-        hour[1] = hp2;
+        char hour[2] = {0};
+        NumToChar(next_alarm->hour, hour);
         HAL_UART_Transmit(&huart1, (uint8_t*) hour, 2, 50);
 
         HAL_UART_Transmit(&huart1, (uint8_t*) ":", 1, 5);
 
-        uint8_t m1 = (next_alarm->min >> 4);
-        uint8_t m2 = (uint8_t) (next_alarm->min & 0x0F);
-        char mp1 = (char) (m1+48);
-        char mp2 = (char) (m2+48);
-        char minutes[2];
-        minutes[0] = mp1;
-        minutes[1] = mp2;
+        char minutes[2] = {0};
+        NumToChar(next_alarm->min, minutes);
         HAL_UART_Transmit(&huart1, (uint8_t*) minutes, 2, 50);
+
     }
 
     //HAL_PWR_EnterSLEEPMode(0, PWR_SLEEPENTRY_WFI);
@@ -250,6 +235,7 @@ while (1)
   /* USER CODE BEGIN 3 */
 
   }
+#pragma clang diagnostic pop
   /* USER CODE END 3 */
 
 }
@@ -335,12 +321,12 @@ void SystemClock_Config(void)
      * **/
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
-    if(strstr((char*) uart_1_buf, "open") != NULL){
+    if(strstr((char*) uart_1_buf, "open\n") != NULL){
         OpenMechanism();
         memset(uart_1_buf, 0, UART_RECV_BUF_SIZE);
     }
     else
-    if(strstr((char*) uart_1_buf, "clos") != NULL){
+    if(strstr((char*) uart_1_buf, "clos\n") != NULL){
         LockMechanism();
         memset(uart_1_buf, 0, UART_RECV_BUF_SIZE);
     }
@@ -465,6 +451,14 @@ void fault(void){
     HAL_Delay(200);
     HAL_GPIO_WritePin(O_STATUS_LED_GPIO_Port, O_STATUS_LED_Pin, GPIO_PIN_RESET);
     HAL_Delay(200);
+}
+
+void NumToChar(uint8_t Num, char* Char){
+    uint8_t char_digit_offset = 48;
+    uint8_t temp1 = (Num >> 4);
+    uint8_t temp2 = (uint8_t) (Num & 0x0F);
+    Char[0] = (char) (temp1 + char_digit_offset);
+    Char[1] = (char) (temp2 + char_digit_offset);
 }
 
 void configAlarm(void){
